@@ -26,11 +26,30 @@ const postArticle = async(req, res, next) => {
 }
 
 const getAllArticles = async(req, res, next) => {
+    const {limit = 10, page = 1, search} = req.query;
+    const skip = parseInt(page - 1) * limit;
+
+    let query = {};
+    if (search){
+        query = {
+            $or: [
+                {title: {$regex: search, $options: 'i'}},
+                {content: {$regex: search, $options: 'i'}}
+            ]
+        }
+    }
+
     try {
-        const {limit = 10, page = 1} = req.query;
-        const skip = parseInt(page - 1) * limit;
-        const Articles = await ArticleModel.find({}).sort({ createdAt: -1 }).limit(limit).skip(skip)
-        res.status(200).json(Articles)
+        const articles = await ArticleModel.find(query).sort({createdAt: -1}).skip(skip).limit(limit)
+        const totalArticles = await ArticleModel.countDocuments(query)
+        res.status(200).json({
+            data: articles,
+            meta: {
+                page: parseInt(page),
+                limit: limit,
+                total: totalArticles
+            }
+        })
     } catch (error) {
         next(error)
     }
